@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import React, { useState, useEffect } from 'react';
 import getImages from '../services/imgApi';
 
 import Searchbar from './Searchbar/Searchbar';
@@ -7,85 +7,65 @@ import Loader from './Loader/Loader';
 import Button from './Button/Button';
 import Modal from './Modal/Modal';
 
-class App extends Component {
-  state = {
-    images: [],
-    query: '',
-    page: 1,
-    imgSrc: '',
-    totalHits: 0,
-    isOpenModal: false,
-    isLoading: false,
+const App = () => {
+  const [images, setImages] = useState([]);
+  const [query, setQueryVal] = useState('');
+  const [page, setPage] = useState(1);
+  const [imgSrc, setImgSrc] = useState('');
+  const [isOpenModal, setIsOpenModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [totalHits, setTotalHits] = useState(0);
+
+  const setQuery = query => {
+    setQueryVal(query);
+    setPage(1);
+    setImages([]);
   };
 
-  setQuery = query => {
-    this.setState({ query, page: 1, images: [] });
+  const pageLoad = () => {
+    setPage(prev => prev + 1);
   };
 
-  pageLoad = () => {
-    this.setState(prev => ({ page: prev.page + 1 }));
-  };
+  useEffect(() => {
+    const getSearched = async () => {
+      setIsLoading(true);
+      try {
+        const res = await getImages(query, page);
+        setTotalHits(res.totalHits);
+        setImages(prev => [...prev, ...res.hits]);
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  componentDidUpdate(prevProps, prevState, snapshot) {
-    if (
-      (prevState.query !== this.state.query && this.state.query !== '') ||
-      prevState.page !== this.state.page
-    ) {
-      this.getSearched();
+    if (query !== '' || page !== 1) {
+      getSearched();
     }
+  }, [query, page]);
 
-    if (
-      prevState.images.length !== this.state.images.length &&
-      this.state.page !== 1
-    ) {
-      window.scrollTo({
-        top: snapshot,
-        behavior: 'smooth',
-      });
-    }
-  }
-
-  getSearched = async () => {
-    this.setState({ isLoading: true });
-    try {
-      const res = await getImages(this.state.query, this.state.page);
-      this.setState(prev => ({
-        totalHits: res.totalHits,
-        images: [...prev.images, ...res.hits],
-      }));
-    } catch (error) {
-      this.setState({ error: 'Oops, not found' });
-    } finally {
-      this.setState({ isLoading: false });
-    }
+  const modalOpen = largeImageURL => {
+    setIsOpenModal(true);
+    setImgSrc(largeImageURL);
   };
 
-  modalOpen = largeImageURL => {
-    this.setState({
-      isOpenModal: true,
-      imgSrc: largeImageURL,
-    });
+  const closeModal = () => {
+    setIsOpenModal(false);
+    setImgSrc('');
   };
 
-  closeModal = () => {
-    this.setState({ isOpenModal: false, imgSrc: '' });
-  };
-
-  render() {
-    const { images, isLoading, imgSrc, isOpenModal, totalHits } =
-      this.state;
-    return (
-      <div className="App">
-        <Searchbar setQuery={this.setQuery} query={this.state.query} />
-        <ImageGallery images={images} modalOpen={this.modalOpen} />
-        {isLoading && <Loader />}
-        {images.length > 0 && totalHits > images.length && (
-          <Button onClick={this.pageLoad} />
-        )}
-        {isOpenModal && <Modal imgSrc={imgSrc} closeModal={this.closeModal} />}
-      </div>
-    );
-  }
-}
+  return (
+    <div className="App">
+      <Searchbar setQuery={setQuery} query={query} />
+      <ImageGallery images={images} modalOpen={modalOpen} />
+      {isLoading && <Loader />}
+      {images.length > 0 && totalHits > images.length && (
+        <Button onClick={pageLoad} />
+      )}
+      {isOpenModal && <Modal imgSrc={imgSrc} closeModal={closeModal} />}
+    </div>
+  );
+};
 
 export default App;
